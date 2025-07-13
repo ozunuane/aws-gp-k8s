@@ -1,0 +1,260 @@
+name: Deploy Production Environment
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'environments/prod/**'
+      - 'modules/**'
+      - 'policies/**'
+      - 'globals/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'environments/prod/**'
+      - 'modules/**'
+      - 'policies/**'
+      - 'globals/**'
+
+env:
+  AWS_REGION: us-west-2
+  TERRAFORM_VERSION: 1.5.7
+  ENVIRONMENT: prod
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  terraform-plan:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./environments/prod
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_PROD }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive -diff
+        continue-on-error: false
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        id: plan
+        run: |
+          terraform plan -out=tfplan -no-color
+          terraform show -no-color tfplan > tfplan.txt
+        continue-on-error: false
+
+      - name: Upload Plan Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan-prod
+          path: |
+            ./environments/prod/tfplan
+            ./environments/prod/tfplan.txt
+          retention-days: 30
+
+      - name: Comment PR with Plan
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('./environments/prod/tfplan.txt', 'utf8');
+            const maxGitHubBodyCharacters = 65536;
+            
+            function chunkSubstr(str, size) {
+              const numChunks = Math.ceil(str.length / size);
+              const chunks = new Array(numChunks);
+              for (let i = 0, o = 0; i < numChunks; ++i, o += size) {
+                chunks[i] = str.substr(o, size);
+              }
+              return chunks;
+            }
+            
+            const planChunks = chunkSubstr(plan, maxGitHubBodyCharacters);
+            
+            for (let i = 0; i < planChunks.length; i++) {
+              const output = `### Terraform Plan Output (Part ${i + 1}/${planChunks.length}) - Production Environment
+              
+              \`\`\`
+              ${planChunks[i]}
+              \`\`\`
+              
+              *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`, Workflow: \`${{ github.workflow }}\`*`;
+              
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: output
+              });
+            }
+
+  terraform-apply:
+    name: Terraform Apply (Manual Approval Required)
+    runs-on: ubuntu-latest
+    needs: terraform-plan
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+    defaults:
+      run:
+        working-directory: ./environments/prod
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_PROD }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Download Plan Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-plan-prod
+          path: ./environments/prod/
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
+
+      - name: Terraform Output
+        run: terraform output -json > terraform-outputs.json
+
+      - name: Upload Outputs Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-outputs-prod
+          path: ./environments/prod/terraform-outputs.json
+          retention-days: 90
+
+      - name: Create Release
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: release } = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: `prod-${context.sha.substring(0, 7)}`,
+              name: `Production Deployment - ${context.sha.substring(0, 7)}`,
+              body: `🚀 **Production Environment Deployment Successful!**
+              
+              This release represents a successful deployment to the production environment.
+              
+              **Deployment Details:**
+              - Environment: Production
+              - Commit: ${context.sha}
+              - Actor: @${{ github.actor }}
+              - Workflow: ${{ github.workflow }}
+              - Timestamp: ${new Date().toISOString()}
+              
+              **Infrastructure Changes:**
+              See the attached artifacts for detailed Terraform outputs and plan information.
+              
+              **Rollback Instructions:**
+              If you need to rollback this deployment, please:
+              1. Revert the commit that triggered this deployment
+              2. Push to the main branch to trigger a new deployment
+              3. Or manually run terraform with the previous state
+              
+              **Monitoring:**
+              Please monitor the production environment for any issues and check:
+              - EKS cluster health
+              - Application logs
+              - Infrastructure metrics`,
+              draft: false,
+              prerelease: false
+            });
+            
+            console.log(`Created release: ${release.html_url}`);
+
+      - name: Notify Deployment Success
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const output = `🚀 **Production Environment Deployment Successful!**
+            
+            The production environment has been successfully deployed and a release has been created.
+            
+            **Deployment Details:**
+            - Environment: Production
+            - Commit: ${{ github.sha }}
+            - Actor: @${{ github.actor }}
+            - Workflow: ${{ github.workflow }}
+            
+            **Next Steps:**
+            - Monitor the production environment
+            - Check application health
+            - Verify all services are running correctly
+            
+            Check the artifacts and release notes for detailed information.`;
+            
+            await github.rest.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha,
+              body: output
+            });
+
+      - name: Notify Deployment Failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const output = `❌ **Production Environment Deployment Failed!**
+            
+            **CRITICAL**: The production environment deployment has failed.
+            
+            **Deployment Details:**
+            - Environment: Production
+            - Commit: ${{ github.sha }}
+            - Actor: @${{ github.actor }}
+            - Workflow: ${{ github.workflow }}
+            
+            **Immediate Actions Required:**
+            1. Check the workflow logs for error details
+            2. Verify the infrastructure state
+            3. Consider rolling back if necessary
+            4. Notify the team immediately
+            
+            Please investigate and resolve the issue as soon as possible.`;
+            
+            await github.rest.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha,
+              body: output
+            }); 

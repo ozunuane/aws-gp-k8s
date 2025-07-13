@@ -1,0 +1,314 @@
+# Development Environment - Example terraform.tfvars
+# Copy this file to terraform.tfvars and update the values
+
+# =============================================================================
+# FEATURE FLAGS FOR CONTROLLED DEPLOYMENT
+# =============================================================================
+
+# Enable/disable specific modules for gradual deployment
+enable_vpc         = true   # Always enable VPC first
+enable_eks         = true   # Enable EKS after VPC
+enable_ingress     = true   # Enable Ingress after EKS
+enable_acm         = true   # Enable ACM after Ingress
+enable_dns_resolver = true  # Enable DNS Resolver
+enable_middleware  = true   # Enable Middleware services
+enable_postgres    = true   # Enable PostgreSQL RDS
+enable_mysql       = true   # Enable MySQL RDS
+enable_iam         = true   # Enable IAM module
+
+# Enable dedicated Karpenter module
+enable_dedicated_karpenter = false
+
+# =============================================================================
+# EXISTING RESOURCE REFERENCES (when modules are disabled)
+# =============================================================================
+
+# Use these when enable_vpc = false
+# existing_vpc_id = "vpc-12345678"
+# existing_private_subnet_ids = ["subnet-12345678", "subnet-87654321"]
+# existing_public_subnet_ids = ["subnet-11111111", "subnet-22222222"]
+# existing_vpc_cidr_block = "10.0.0.0/16"
+
+# Use these when enable_eks = false
+# existing_cluster_endpoint = "https://eks-cluster.amazonaws.com"
+# existing_cluster_ca_certificate = "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0t..."
+# existing_cluster_token = "k8s-aws-v1.aHR0cHM6Ly9zdHMuYW1hem9uYXdzLmNvbS..."
+# existing_cluster_security_group_id = "sg-12345678"
+
+# Use these when enable_ingress = false
+# existing_external_load_balancer_hostname = "a1234567890.us-west-2.elb.amazonaws.com"
+# existing_external_load_balancer_zone_id = "Z1234567890"
+# existing_internal_load_balancer_hostname = "internal-a1234567890.us-west-2.elb.amazonaws.com"
+# existing_internal_load_balancer_zone_id = "Z1234567890"
+
+# Use these when enable_acm = false
+# existing_ssl_certificate_arn = "arn:aws:acm:us-west-2:123456789012:certificate/12345678-1234-1234-1234-123456789012"
+
+# Use these when enable_middleware = false
+# existing_redis_security_group_id = "sg-12345678"
+
+# =============================================================================
+# GLOBAL CONFIGURATION
+# =============================================================================
+
+# AWS Region
+aws_region = "us-west-2"
+
+# Project and Organization
+project_name = "myapp"
+organization = "mycompany"
+
+# Common tags applied to all resources
+common_tags = {
+  Project     = "myapp"
+  Environment = "dev"
+  Owner       = "devops-team"
+  CostCenter  = "engineering"
+  ManagedBy   = "terraform"
+}
+
+# =============================================================================
+# NETWORKING CONFIGURATION
+# =============================================================================
+
+# VPC CIDR blocks for each environment
+vpc_cidr_blocks = {
+  dev     = "10.0.0.0/16"
+  staging = "10.1.0.0/16"
+  prod    = "10.2.0.0/16"
+}
+
+# Public subnet CIDRs
+public_subnet_cidrs = {
+  dev     = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
+  staging = ["10.1.1.0/24", "10.1.2.0/24", "10.1.3.0/24"]
+  prod    = ["10.2.1.0/24", "10.2.2.0/24", "10.2.3.0/24"]
+}
+
+# Private subnet CIDRs
+private_subnet_cidrs = {
+  dev     = ["10.0.10.0/24", "10.0.11.0/24", "10.0.12.0/24"]
+  staging = ["10.1.10.0/24", "10.1.11.0/24", "10.1.12.0/24"]
+  prod    = ["10.2.10.0/24", "10.2.11.0/24", "10.2.12.0/24"]
+}
+
+# =============================================================================
+# EKS CONFIGURATION
+# =============================================================================
+
+# Kubernetes versions for each environment
+kubernetes_versions = {
+  dev     = "1.28"
+  staging = "1.28"
+  prod    = "1.28"
+}
+
+# Node instance types for each environment
+node_instance_types = {
+  dev     = ["t3.medium", "t3.small"]
+  staging = ["t3.large", "t3.medium"]
+  prod    = ["m6g.large", "m6g.xlarge"]
+}
+
+# Node scaling configuration
+node_scaling_config = {
+  dev = {
+    min_size     = 1
+    max_size     = 3
+    desired_size = 2
+  }
+  staging = {
+    min_size     = 2
+    max_size     = 5
+    desired_size = 3
+  }
+  prod = {
+    min_size     = 3
+    max_size     = 10
+    desired_size = 5
+  }
+}
+
+# =============================================================================
+# RDS CONFIGURATION
+# =============================================================================
+
+# PostgreSQL Configuration
+postgres_config = {
+  engine_version = "15.4"
+  instance_class = "db.t3.micro"
+  allocated_storage = 20
+  max_allocated_storage = 100
+  backup_retention_period = 7
+  performance_insights_enabled = false
+  monitoring_interval = 0
+  multi_az = false
+  deletion_protection = false
+  read_replicas = {}
+}
+
+# MySQL Configuration
+mysql_config = {
+  engine_version = "8.0.35"
+  instance_class = "db.t3.micro"
+  allocated_storage = 20
+  max_allocated_storage = 100
+  backup_retention_period = 7
+  performance_insights_enabled = false
+  monitoring_interval = 0
+  multi_az = false
+  deletion_protection = false
+  read_replicas = {}
+}
+
+# =============================================================================
+# MIDDLEWARE CONFIGURATION
+# =============================================================================
+
+# Enable middleware services for each environment
+enable_middleware = {
+  dev = {
+    redis      = true
+    kafka      = false
+    rabbitmq   = true
+    documentdb = false
+  }
+  staging = {
+    redis      = true
+    kafka      = true
+    rabbitmq   = true
+    documentdb = true
+  }
+  prod = {
+    redis      = true
+    kafka      = true
+    rabbitmq   = true
+    documentdb = true
+  }
+}
+
+# Middleware passwords (only required if not using random generation)
+rabbitmq_password = "your-rabbitmq-password"
+documentdb_master_password = "your-documentdb-password"
+
+# =============================================================================
+# DOMAIN AND SSL CONFIGURATION
+# =============================================================================
+
+# Domain configurations
+domains = {
+  primary = {
+    domain_name         = "example.com"
+    subdomains          = ["www", "api", "app"]
+    wildcard_subdomains = []
+    route53_zone_id     = null
+    create_hosted_zone  = true
+    hosted_zone_type    = "public"
+    vpc_id              = null
+    load_balancer_type  = "external"
+    a_records = [
+      {
+        name = "dev.example.com"
+        type = "A"
+        ttl  = 300
+      }
+    ]
+    cname_records = [
+      {
+        name  = "www.dev.example.com"
+        value = "dev.example.com"
+        ttl   = 300
+      }
+    ]
+  }
+}
+
+# =============================================================================
+# DNS RESOLVER CONFIGURATION
+# =============================================================================
+
+# DNS resolver configuration
+dns_resolver_config = {
+  enable_outbound_resolver = true
+  enable_inbound_resolver  = true
+  resolver_rules = {
+    "corporate-dns" = {
+      domain_name = "corporate.example.com"
+      name        = "corporate-dns-forward"
+      target_ips  = ["8.8.8.8", "8.8.4.4"]
+    }
+  }
+  inbound_resolver_rules = {
+    "internal-domain" = {
+      domain_name = "internal.example.com"
+      name        = "internal-domain-resolver"
+    }
+  }
+}
+
+# =============================================================================
+# IAM CONFIGURATION
+# =============================================================================
+
+# User configurations
+devops_users = {
+  "devops1" = {
+    name = "john.doe"
+  }
+}
+
+developer_users = {
+  "dev1" = {
+    name = "jane.smith"
+  }
+  "dev2" = {
+    name = "bob.johnson"
+  }
+}
+
+qa_users = {
+  "qa1" = {
+    name = "alice.wilson"
+  }
+}
+
+readonly_users = {
+  "readonly1" = {
+    name = "charlie.brown"
+  }
+}
+
+# GitHub OIDC configuration
+github_repository_subjects = [
+  "repo:your-org/your-repo:ref:refs/heads/main",
+  "repo:your-org/your-repo:ref:refs/heads/dev"
+]
+
+# Security configurations
+create_access_keys = true
+enforce_mfa = false
+
+# =============================================================================
+# FEATURE FLAGS
+# =============================================================================
+
+# Enable NAT Gateway for each environment
+enable_nat_gateway = {
+  dev     = true
+  staging = true
+  prod    = true
+}
+
+# Enable VPC endpoints for each environment
+enable_vpc_endpoints = {
+  dev     = false
+  staging = true
+  prod    = true
+}
+
+# Enable Karpenter for each environment
+enable_karpenter = {
+  dev     = true
+  staging = true
+  prod    = true
+} 

@@ -1,0 +1,161 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "S3FullAccess",
+      "Effect": "Allow",
+      "Action": [
+        "s3:*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "S3BucketOperations",
+      "Effect": "Allow",
+      "Action": [
+        "s3:CreateBucket",
+        "s3:PutBucketPolicy",
+        "s3:DeleteBucketPolicy",
+        "s3:PutBucketVersioning",
+        "s3:PutBucketEncryption",
+        "s3:PutBucketPublicAccessBlock",
+        "s3:PutBucketAcl",
+        "s3:PutBucketCors",
+        "s3:PutBucketLifecycle",
+        "s3:PutBucketNotification",
+        "s3:PutBucketReplication",
+        "s3:PutBucketTagging",
+        "s3:PutBucketWebsite",
+        "s3:PutObject",
+        "s3:PutObjectAcl",
+        "s3:PutObjectTagging",
+        "s3:PutObjectVersion",
+        "s3:DeleteObject",
+        "s3:DeleteObjectVersion",
+        "s3:DeleteObjects",
+        "s3:GetObject",
+        "s3:GetObjectAcl",
+        "s3:GetObjectTagging",
+        "s3:GetObjectVersion",
+        "s3:GetObjectVersionAcl",
+        "s3:GetObjectVersionTagging",
+        "s3:ListBucket",
+        "s3:ListBucketVersions",
+        "s3:ListMultipartUploadParts",
+        "s3:AbortMultipartUpload",
+        "s3:CompleteMultipartUpload",
+        "s3:InitiateMultipartUpload",
+        "s3:UploadPart",
+        "s3:UploadPartCopy"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "S3BucketManagement",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetBucketLocation",
+        "s3:GetBucketPolicy",
+        "s3:GetBucketVersioning",
+        "s3:GetBucketEncryption",
+        "s3:GetBucketPublicAccessBlock",
+        "s3:GetBucketAcl",
+        "s3:GetBucketCors",
+        "s3:GetBucketLifecycle",
+        "s3:GetBucketLifecycleConfiguration",
+        "s3:GetBucketNotification",
+        "s3:GetBucketReplication",
+        "s3:GetBucketTagging",
+        "s3:GetBucketWebsite",
+        "s3:GetBucketLogging",
+        "s3:GetBucketRequestPayment",
+        "s3:GetBucketAccelerateConfiguration",
+        "s3:GetBucketAnalyticsConfiguration",
+        "s3:GetBucketIntelligentTieringConfiguration",
+        "s3:GetBucketInventoryConfiguration",
+        "s3:GetBucketMetricsConfiguration",
+        "s3:GetBucketOwnershipControls",
+        "s3:GetBucketPolicyStatus",
+        "s3:GetBucketVersioning",
+        "s3:GetObjectAcl",
+        "s3:GetObjectLegalHold",
+        "s3:GetObjectLockConfiguration",
+        "s3:GetObjectRetention",
+        "s3:GetObjectTagging",
+        "s3:GetObjectTorrent",
+        "s3:GetObjectVersion",
+        "s3:GetObjectVersionAcl",
+        "s3:GetObjectVersionForReplication",
+        "s3:GetObjectVersionTagging",
+        "s3:GetObjectVersionTorrent",
+        "s3:GetReplicationConfiguration",
+        "s3:ListAllMyBuckets",
+        "s3:ListBucket",
+        "s3:ListBucketMultipartUploads",
+        "s3:ListBucketVersions",
+        "s3:ListMultipartUploadParts",
+        "s3:ListObjects",
+        "s3:ListObjectsV2",
+        "s3:ListParts"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "S3AnalyticsAndMetrics",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutAnalyticsConfiguration",
+        "s3:GetAnalyticsConfiguration",
+        "s3:ListAnalyticsConfigurations",
+        "s3:DeleteAnalyticsConfiguration",
+        "s3:PutMetricsConfiguration",
+        "s3:GetMetricsConfiguration",
+        "s3:ListMetricsConfigurations",
+        "s3:DeleteMetricsConfiguration",
+        "s3:PutInventoryConfiguration",
+        "s3:GetInventoryConfiguration",
+        "s3:ListInventoryConfigurations",
+        "s3:DeleteInventoryConfiguration",
+        "s3:PutIntelligentTieringConfiguration",
+        "s3:GetIntelligentTieringConfiguration",
+        "s3:ListIntelligentTieringConfigurations",
+        "s3:DeleteIntelligentTieringConfiguration"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "S3ObjectLockAndRetention",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObjectLegalHold",
+        "s3:GetObjectLegalHold",
+        "s3:PutObjectRetention",
+        "s3:GetObjectRetention",
+        "s3:PutObjectLockConfiguration",
+        "s3:GetObjectLockConfiguration",
+        "s3:PutBucketObjectLockConfiguration",
+        "s3:GetBucketObjectLockConfiguration"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "S3Replication",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutReplicationConfiguration",
+        "s3:GetReplicationConfiguration",
+        "s3:DeleteReplicationConfiguration"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "S3SelectAndRestore",
+      "Effect": "Allow",
+      "Action": [
+        "s3:SelectObjectContent",
+        "s3:RestoreObject"
+      ],
+      "Resource": "*"
+    }
+  ]
+} 

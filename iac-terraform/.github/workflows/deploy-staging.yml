@@ -1,0 +1,208 @@
+name: Deploy Staging Environment
+
+on:
+  push:
+    branches: [staging]
+    paths:
+      - 'environments/staging/**'
+      - 'modules/**'
+      - 'policies/**'
+      - 'globals/**'
+  pull_request:
+    branches: [staging]
+    paths:
+      - 'environments/staging/**'
+      - 'modules/**'
+      - 'policies/**'
+      - 'globals/**'
+
+env:
+  AWS_REGION: us-west-2
+  TERRAFORM_VERSION: 1.5.7
+  ENVIRONMENT: staging
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  terraform-plan:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./environments/staging
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_STAGING }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive -diff
+        continue-on-error: false
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        id: plan
+        run: |
+          terraform plan -out=tfplan -no-color
+          terraform show -no-color tfplan > tfplan.txt
+        continue-on-error: false
+
+      - name: Upload Plan Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan-staging
+          path: |
+            ./environments/staging/tfplan
+            ./environments/staging/tfplan.txt
+          retention-days: 30
+
+      - name: Comment PR with Plan
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('./environments/staging/tfplan.txt', 'utf8');
+            const maxGitHubBodyCharacters = 65536;
+            
+            function chunkSubstr(str, size) {
+              const numChunks = Math.ceil(str.length / size);
+              const chunks = new Array(numChunks);
+              for (let i = 0, o = 0; i < numChunks; ++i, o += size) {
+                chunks[i] = str.substr(o, size);
+              }
+              return chunks;
+            }
+            
+            const planChunks = chunkSubstr(plan, maxGitHubBodyCharacters);
+            
+            for (let i = 0; i < planChunks.length; i++) {
+              const output = `### Terraform Plan Output (Part ${i + 1}/${planChunks.length}) - Staging Environment
+              
+              \`\`\`
+              ${planChunks[i]}
+              \`\`\`
+              
+              *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`, Workflow: \`${{ github.workflow }}\`*`;
+              
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: output
+              });
+            }
+
+  terraform-apply:
+    name: Terraform Apply (Manual Approval Required)
+    runs-on: ubuntu-latest
+    needs: terraform-plan
+    if: github.ref == 'refs/heads/staging' && github.event_name == 'push'
+    environment: staging
+    defaults:
+      run:
+        working-directory: ./environments/staging
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_STAGING }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Download Plan Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-plan-staging
+          path: ./environments/staging/
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
+
+      - name: Terraform Output
+        run: terraform output -json > terraform-outputs.json
+
+      - name: Upload Outputs Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-outputs-staging
+          path: ./environments/staging/terraform-outputs.json
+          retention-days: 90
+
+      - name: Notify Deployment Success
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const output = `🚀 **Staging Environment Deployment Successful!**
+            
+            The staging environment has been successfully deployed.
+            
+            **Deployment Details:**
+            - Environment: Staging
+            - Commit: ${{ github.sha }}
+            - Actor: @${{ github.actor }}
+            - Workflow: ${{ github.workflow }}
+            
+            Check the artifacts for detailed outputs and plan information.`;
+            
+            await github.rest.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha,
+              body: output
+            });
+
+      - name: Notify Deployment Failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const output = `❌ **Staging Environment Deployment Failed!**
+            
+            The staging environment deployment has failed.
+            
+            **Deployment Details:**
+            - Environment: Staging
+            - Commit: ${{ github.sha }}
+            - Actor: @${{ github.actor }}
+            - Workflow: ${{ github.workflow }}
+            
+            Please check the workflow logs for more details.`;
+            
+            await github.rest.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha,
+              body: output
+            }); 
